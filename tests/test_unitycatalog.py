@@ -1,5 +1,6 @@
 import pytest
 import time
+from self_service.client.unitycatalog import UnityCatalogClient
 from self_service.unitycatalog import UnityCatalog
 import os
 from dotenv import load_dotenv
@@ -24,7 +25,8 @@ account_client = AccountClient(host=DATABRICKS_HOST_ACCOUNT, account_id=ACCOUNT_
 def unity_catalog():
     workspace_client = WorkspaceClient(host=DATABRICKS_HOST_WORKSPACE, client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     account_client = AccountClient(host=DATABRICKS_HOST_ACCOUNT, account_id=ACCOUNT_ID, client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
-    return UnityCatalog(workspace_client, account_client)
+    unity_catalog_client = UnityCatalogClient(workspace_client, account_client)
+    return UnityCatalog(unity_catalog_client)
 
 def test_create_and_delete_catalog(unity_catalog):
     catalog_name = f'integration_test_catalog_{int(time.time())}'
