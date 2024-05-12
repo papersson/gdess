@@ -1,34 +1,18 @@
 from databricks.sdk import WorkspaceClient, AccountClient
 from databricks.sdk.service import catalog
 from databricks.sdk.service import iam
+from .client import UnityCatalogClient
 
 class UnityCatalog:
     def __init__(self, workspace_client, account_client):
-        self.workspace_client = workspace_client
-        self.account_client = account_client
+        self.client = UnityCatalogClient(workspace_client, account_client)
 
     def create_catalog(self, catalog_name):
         """ Create a new catalog and associated groups with default privileges. """
-        # Create catalog
-        catalog_info = self.workspace_client.catalogs.create(name=catalog_name)
-        print(f"Catalog created: {catalog_info.name}")
-        
-        # Create groups with names derived from the catalog name
-        groups_info = {}
-        for group_name_suffix in ["read", "readwrite", "writemetadata"]:
-            group_display_name = f"{catalog_name}_{group_name_suffix}"
-            group_info = self.account_client.groups.create(display_name=group_display_name)
-            groups_info[group_display_name] = group_info.id
-            print(f"Group created: {group_display_name} with ID: {group_info.id}")
-
-        # Assign default permissions to groups
-        self.workspace_client.grants.update(securable_type=catalog.SecurableType.CATALOG, full_name=catalog_name, changes=[
-            catalog.PermissionsChange(add=[catalog.Privilege.USE_CATALOG, catalog.Privilege.USE_SCHEMA, catalog.Privilege.SELECT], principal=f"{catalog_name}_read"),
-            catalog.PermissionsChange(add=[catalog.Privilege.ALL_PRIVILEGES], principal=f"{catalog_name}_readwrite"),
-            catalog.PermissionsChange(add=[catalog.Privilege.APPLY_TAG], principal=f"{catalog_name}_writemetadata")
-        ])
-        print("Permissions assigned to groups.")
-
+        catalog_info = self.client.create_catalog(catalog_name)
+        self.client.create_default_groups(catalog_name)
+        self.client.assign_default_permissions(catalog_name)
+        print(f"Created catalog '{catalog_name}' and default security groups.")
         return catalog_info
 
     def delete_catalog(self, catalog_name):
@@ -44,34 +28,34 @@ class UnityCatalog:
             self.account_client.groups.delete(group.id)
             print(f"Group deleted: {group.display_name} with ID: {group.id}")
 
-    def grant_access(self, catalog_name, access_type, user_display_name):
-        """ Grant access to a user based on access type and user's display name by first retrieving the user ID. """
-        # Retrieve user ID based on the user's display name using SCIM filter
+    from typing import Optional
+
+    def _find_user_id(self, user_display_name: str) -> Optional[str]:
+        """Retrieve user ID based on the user's display name."""
         filter_expression = f"userName eq '{user_display_name}'"
         users = list(self.account_client.users.list(filter=filter_expression))
         if not users:
-            print(f"Error: User with display name {user_display_name} not found.")
-            return
+            raise ValueError(f"User with display name {user_display_name} not found.")
+        return users[0].id
 
-        user_id = users[0].id
-
-        # Fetch the group ID using the display name
+    def _find_group_id(self, catalog_name: str, access_type: str) -> Optional[str]:
+        """Fetch the group ID using the catalog name and access type."""
         group_display_name = f"{catalog_name}_{access_type}"
         filter_expression = f"displayName eq '{group_display_name}'"
         groups = list(self.account_client.groups.list(filter=filter_expression))
-        group_id = next((group.id for group in groups if group.display_name == group_display_name), None)
-        
-        if group_id:
-            # Add the user to the group using the patch method
-            operations = [iam.Patch(
-                op=iam.PatchOp.ADD,
-                value={"members": [{"value": user_id}]}
-            )]
-            schemas = [iam.PatchSchema.URN_IETF_PARAMS_SCIM_API_MESSAGES_2_0_PATCH_OP]
-            self.account_client.groups.patch(id=group_id, operations=operations, schemas=schemas)
-            print(f"Access granted: {user_display_name} added to {group_display_name}")
-        else:
-            print(f"Error: Group {group_display_name} not found.")
+        group = next((group for group in groups if group.display_name == group_display_name), None)
+        if not group:
+            raise ValueError(f"Group {group_display_name} not found.")
+        return group.id
+
+    def grant_access(self, catalog_name: str, access_type: str, user_display_name: str):
+        """Grant access to a user based on access type and user's display name."""
+        user_id = self._find_user_id(user_display_name)
+        group_id = self._find_group_id(catalog_name, access_type)
+        operations = [iam.Patch(op=iam.PatchOp.ADD, value={"members": [{"value": user_id}]})]
+        schemas = [iam.PatchSchema.URN_IETF_PARAMS_SCIM_API_MESSAGES_2_0_PATCH_OP]
+        self.account_client.groups.patch(id=group_id, operations=operations, schemas=schemas)
+        print(f"Granted '{access_type}' access to {user_display_name} for catalog '{catalog_name}'.")
 
     def revoke_access(self, catalog_name, access_type, user_display_name):
         """ Revoke access from a user based on access type and user's display name by first retrieving the user ID. """
@@ -123,14 +107,14 @@ class UnityCatalog:
 # unity_catalog_instance = UnityCatalog(workspace_client, account_client)
 # # Create a temporary catalog for demonstration
 # temp_catalog_name = "test_access"
-# # unity_catalog_instance.create_catalog(temp_catalog_name)
+# unity_catalog_instance.create_catalog(temp_catalog_name)
 # # # Example usage of the grant_access method
 # # # Assuming 'user_principal_id' is the ID of the user to whom access is being granted
 # user_principal_id = 'toni.krmek@falck.com'
 # access_type = "read"  # Can be 'read', 'readwrite', or 'writemetadata'
 # try:
 #     # unity_catalog_instance.revoke_access(temp_catalog_name, access_type, user_principal_id)
-#     # unity_catalog_instance.grant_access(temp_catalog_name, access_type, user_principal_id)
+#     unity_catalog_instance.grant_access(temp_catalog_name, access_type, user_principal_id)
 #     print(f"Access type '{access_type}' granted to user with name {user_principal_id} for catalog '{temp_catalog_name}'.")
 # except Exception as e:
 #     print(f"Failed to grant access: {e}")
