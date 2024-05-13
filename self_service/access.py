@@ -1,6 +1,4 @@
 from databricks.sdk.service import catalog
-import os
-from dotenv import load_dotenv
 from databricks.sdk import WorkspaceClient
 
 class Access:
@@ -14,15 +12,8 @@ class Access:
         writemetadata) on every level (catalog, schema, table), and this class orchestrates the low-level
         permission changes needed to achieve the desired access type.
         """
-        load_dotenv()
-        DATABRICKS_HOST_WORKSPACE: str = os.getenv("DATABRICKS_HOST_WORKSPACE", "")
-        CLIENT_ID: str = os.getenv("CLIENT_ID", "")
-        CLIENT_SECRET: str = os.getenv("CLIENT_SECRET", "")
         
-        if not all([DATABRICKS_HOST_WORKSPACE, CLIENT_ID, CLIENT_SECRET]):
-            raise EnvironmentError("Required environment variables for Databricks workspace are not set.")
-        
-        self.client = WorkspaceClient(host=DATABRICKS_HOST_WORKSPACE, client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+        self.client = WorkspaceClient()
 
     def _update_permissions(self, access_type: str, principal: str, action: str) -> None:
         """
