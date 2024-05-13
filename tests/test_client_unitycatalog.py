@@ -139,6 +139,24 @@ def test_grant_access():
         schemas=expected_schemas
     )
 
+def test_grant_access_non_existent_user():
+    account_client_mock = Mock()
+    unity_catalog_client = UnityCatalogClient(workspace_client=Mock(), account_client=account_client_mock)
+    
+    # Mock find_user_id to raise ValueError when user does not exist
+    unity_catalog_client.find_user_id = Mock(side_effect=ValueError("User not found"))
+    
+    catalog_name = "test_catalog"
+    access_type = "read"
+    user_display_name = "NonExistentUser"
+    
+    # Verify that ValueError is raised when user does not exist
+    with pytest.raises(ValueError, match="User not found"):
+        unity_catalog_client.grant_access(catalog_name, access_type, user_display_name)
+    
+    # Ensure that no patch operation is attempted since the user does not exist
+    account_client_mock.groups.patch.assert_not_called()
+
 def test_revoke_access():
     account_client_mock = Mock()
     unity_catalog_client = UnityCatalogClient(workspace_client=Mock(), account_client=account_client_mock)

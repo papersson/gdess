@@ -2,7 +2,7 @@ class UnityCatalog:
     def __init__(self, unity_catalog_client):
         self.client = unity_catalog_client
 
-    def create_catalog(self, catalog_name):
+    def create_catalog(self, catalog_name: str):
         """ Create a new catalog and associated groups with default privileges. """
         catalog_info = self.client.create_catalog(catalog_name)
         self.client.create_default_groups(catalog_name)
@@ -10,7 +10,7 @@ class UnityCatalog:
         print(f"Created catalog '{catalog_name}' and default security groups.")
         return catalog_info
 
-    def delete_catalog(self, catalog_name):
+    def delete_catalog(self, catalog_name: str):
         """ Delete a catalog and its associated groups. """
         self.client.delete_catalog_and_groups(catalog_name)
         print(f"Deleted catalog '{catalog_name}' and its associated groups.")

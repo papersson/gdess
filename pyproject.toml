@@ -14,7 +14,18 @@ python-dotenv = "^1.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
+mypy = "^1.10.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.8"
+check_untyped_defs = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+show_error_codes = true
+show_error_context = true
+show_column_numbers = true
+show_traceback = true
