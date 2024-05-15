@@ -1,6 +1,14 @@
 from databricks.sdk.service import catalog
 from databricks.sdk import WorkspaceClient
+import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+os.environ['DATABRICKS_HOST'] = os.getenv('DATABRICKS_HOST')
+os.environ['DATABRICKS_CLIENT_ID'] = os.getenv('DATABRICKS_CLIENT_ID')
+os.environ['DATABRICKS_CLIENT_SECRET'] = os.getenv('DATABRICKS_CLIENT_SECRET')
 class Access:
     def __init__(self) -> None:
         """
