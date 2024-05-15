@@ -12,10 +12,21 @@ os.environ['DATABRICKS_CLIENT_SECRET'] = os.getenv('DATABRICKS_CLIENT_SECRET')
 # table = Tables.get('uc', 'curated_elm_no', 'dim_absencestatus')
 # table.access.revoke('read', 'niels.bleijerveld@falck.com')
 
-import pprint
+# import pprint
 
-# Assuming Tables.list returns a list of dictionaries
-schema = Tables.get('uc', 'curated_elm_no', 'dim_absencestatus')
-# pprint.pprint(schema.access.list().as_dict())
-for p in schema.access.list():
-    pprint.pprint(p)
+# Catalogs.create('hr', 'uat')
+
+from databricks.sdk import WorkspaceClient
+
+# # Initialize the workspace client
+# w = WorkspaceClient()
+
+# # Get the current workspace ID
+# current_workspace_id = w.get_workspace_id()
+# print(f'Current Workspace ID: {current_workspace_id}')
+
+Catalogs.delete('hr_dev')
+Catalogs.create('hr', 'dev')
+Catalogs.create('hr', 'uat')
+# Catalogs.delete('hr_uat')
+# Catalogs.delete('hr_dev')
