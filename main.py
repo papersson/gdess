@@ -15,6 +15,7 @@ os.environ['DATABRICKS_CLIENT_SECRET'] = os.getenv('DATABRICKS_CLIENT_SECRET')
 import pprint
 
 # Assuming Tables.list returns a list of dictionaries
-table = Tables.list('uc', 'curated_elm_no')[0]
-print(table)
-
+schema = Tables.get('uc', 'curated_elm_no', 'dim_absencestatus')
+# pprint.pprint(schema.access.list().as_dict())
+for p in schema.access.list():
+    pprint.pprint(p)

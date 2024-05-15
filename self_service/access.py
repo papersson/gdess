@@ -1,3 +1,4 @@
+from typing import List, Optional
 from databricks.sdk.service import catalog
 from databricks.sdk import WorkspaceClient
 import os
@@ -21,7 +22,7 @@ class Access:
         permission changes needed to achieve the desired access type.
         """
         
-        self.client = WorkspaceClient()
+        self._client = WorkspaceClient()
 
     def _update_permissions(self, access_type: str, principal: str, action: str) -> None:
         """
@@ -50,6 +51,11 @@ class Access:
         """
         self._update_permissions(access_type, principal, 'remove')
 
+    def list(self, securable_type: catalog.SecurableType, full_name: str) -> Optional[List[catalog.EffectivePrivilegeAssignment]]:
+        """ List all grants for the given securable. """
+        grants_info = self._client.grants.get_effective(securable_type=securable_type, full_name=full_name)
+        return grants_info.privilege_assignments
+
 class CatalogAccess(Access):
     def __init__(self, full_name: str) -> None:
         """Initialize CatalogAccess with specific catalog settings.
@@ -58,7 +64,7 @@ class CatalogAccess(Access):
             full_name (str): The full name of the catalog.
         """
         super().__init__()
-        self.full_name = full_name
+        self._full_name = full_name
 
     def _update_permissions(self, access_type: str, principal: str, action: str) -> None:
         """ Update permissions excluvely on the catalog. """
@@ -72,11 +78,14 @@ class CatalogAccess(Access):
             raise ValueError("Unsupported access type")
 
         changes = catalog.PermissionsChange(**{action: privileges_mapping[access_type]}, principal=principal)
-        self.client.grants.update(
+        self._client.grants.update(
             securable_type=catalog.SecurableType.CATALOG,
-            full_name=self.full_name,
+            full_name=self._full_name,
             changes=[changes]
         )
+
+    def list(self) -> Optional[List[catalog.EffectivePrivilegeAssignment]]:
+        return super().list(catalog.SecurableType.CATALOG, self._full_name)
 
 class SchemaAccess(Access):
     def __init__(self, catalog_name: str, schema_name: str) -> None:
@@ -87,9 +96,9 @@ class SchemaAccess(Access):
             schema_name (str): The name of the schema.
         """
         super().__init__()
-        self.catalog_name = catalog_name
-        self.schema_name = schema_name
-        self.full_name = f"{catalog_name}.{schema_name}"
+        self._catalog_name = catalog_name
+        self._schema_name = schema_name
+        self._full_name = f"{catalog_name}.{schema_name}"
 
     def _update_permissions(self, access_type: str, principal: str, action: str) -> None:
         """ Update permissions on the schema and parent catalog. """
@@ -113,12 +122,15 @@ class SchemaAccess(Access):
 
         for securable_type, privileges in privileges_mapping[access_type]:
             changes = catalog.PermissionsChange(**{action: privileges}, principal=principal)
-            full_name = self.catalog_name if securable_type == catalog.SecurableType.CATALOG else f"{self.catalog_name}.{self.schema_name}"
-            self.client.grants.update(
+            full_name = self._catalog_name if securable_type == catalog.SecurableType.CATALOG else f"{self._catalog_name}.{self._schema_name}"
+            self._client.grants.update(
                 securable_type=securable_type,
                 full_name=full_name,
                 changes=[changes]
             )
+
+    def list(self) -> Optional[List[catalog.EffectivePrivilegeAssignment]]:
+        return super().list(catalog.SecurableType.SCHEMA, self._full_name)
 
 class TableAccess(Access):
     def __init__(self, catalog_name: str, schema_name: str, table_name: str) -> None:
@@ -130,10 +142,10 @@ class TableAccess(Access):
             table_name (str): The name of the table.
         """
         super().__init__()
-        self.catalog_name = catalog_name
-        self.schema_name = schema_name
-        self.table_name = table_name
-        self.full_name = f"{catalog_name}.{schema_name}.{table_name}"
+        self._catalog_name = catalog_name
+        self._schema_name = schema_name
+        self._table_name = table_name
+        self._full_name = f"{catalog_name}.{schema_name}.{table_name}"
 
     def _update_permissions(self, access_type: str, principal: str, action: str) -> None:
         """ Update permissions on the schema and parent catalog. """
@@ -161,15 +173,18 @@ class TableAccess(Access):
         for securable_type, privileges in privileges_mapping[access_type]:
             changes = catalog.PermissionsChange(**{action: privileges}, principal=principal)
             full_name_map = {
-                catalog.SecurableType.TABLE: f"{self.catalog_name}.{self.schema_name}.{self.table_name}",
-                catalog.SecurableType.SCHEMA: f"{self.catalog_name}.{self.schema_name}",
-                catalog.SecurableType.CATALOG: self.catalog_name
+                catalog.SecurableType.TABLE: f"{self._catalog_name}.{self._schema_name}.{self._table_name}",
+                catalog.SecurableType.SCHEMA: f"{self._catalog_name}.{self._schema_name}",
+                catalog.SecurableType.CATALOG: self._catalog_name
             }
             full_name = full_name_map.get(securable_type)
             if not full_name:
                 raise ValueError("Unsupported securable type")
-            self.client.grants.update(
+            self._client.grants.update(
                 securable_type=securable_type,
                 full_name=full_name,
                 changes=[changes]
             )
+
+    def list(self) -> Optional[List[catalog.EffectivePrivilegeAssignment]]:
+        return super().list(catalog.SecurableType.TABLE, self._full_name)
