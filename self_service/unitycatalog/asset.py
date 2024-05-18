@@ -28,13 +28,13 @@ class Catalogs:
         storage_root = f'abfss://unitycatalog@dlsgde{environment}.dfs.core.windows.net/'
         created_catalog = cls._client.create(name=catalog_name, storage_root=storage_root)
 
-        # Unassign all except the current workspace
+        # # Unassign all except the current workspace
         current_workspace_id = WorkspaceClient().get_workspace_id()
-        all_workspace_ids = get_metastore_workspace_ids()
-        other_workspace_ids = [id for id in all_workspace_ids if id != current_workspace_id]
-        cls._workspace_bindings.update(name=catalog_name, unassign_workspaces=other_workspace_ids)
+        # all_workspace_ids = get_metastore_workspace_ids()
+        # other_workspace_ids = [id for id in all_workspace_ids if id != current_workspace_id]
+        # cls._workspace_bindings.update(name=catalog_name, unassign_workspaces=other_workspace_ids)
 
-        # # Assign only to the current workspace
+        # # # Assign only to the current workspace
         # cls._workspace_bindings.update(name=catalog_name, assign_workspaces=[current_workspace_id])
 
         return created_catalog
