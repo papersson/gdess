@@ -1,6 +1,7 @@
 from databricks.sdk import WorkspaceClient
 from .access import CatalogAccess, SchemaAccess, TableAccess
 from .metadata import Metadata
+from databricks.sdk.service.catalog import IsolationMode, EnablePredictiveOptimization
 
 class Catalog:
     def __init__(self, full_name: str):
@@ -28,14 +29,18 @@ class Catalogs:
         storage_root = f'abfss://unitycatalog@dlsgde{environment}.dfs.core.windows.net/'
         created_catalog = cls._client.create(name=catalog_name, storage_root=storage_root)
 
-        # # Unassign all except the current workspace
-        current_workspace_id = WorkspaceClient().get_workspace_id()
-        # all_workspace_ids = get_metastore_workspace_ids()
-        # other_workspace_ids = [id for id in all_workspace_ids if id != current_workspace_id]
-        # cls._workspace_bindings.update(name=catalog_name, unassign_workspaces=other_workspace_ids)
 
-        # # # Assign only to the current workspace
-        # cls._workspace_bindings.update(name=catalog_name, assign_workspaces=[current_workspace_id])
+        # Update catalog isolation mode (don't auto-assign to all workspaces) and enable predictive optimization
+        cls._client.update(
+            name=catalog_name,
+            isolation_mode=IsolationMode.ISOLATED,
+            enable_predictive_optimization=EnablePredictiveOptimization.ENABLE
+        )
+        
+        # Assign only to the current workspace
+        current_workspace_id = WorkspaceClient().get_workspace_id()
+        cls._workspace_bindings.update(name=catalog_name, assign_workspaces=[current_workspace_id])
+
 
         return created_catalog
 
